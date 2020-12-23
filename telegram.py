@@ -790,15 +790,27 @@ def zalooper():
                                                  'ВНИМАНИЕ! Пошла антикапча!')
                                 captcha_fp = open(captcha_file, 'rb')
                                 task = ImageToTextTask(fp=captcha_fp, numeric=1)
-                                job = ACC.createTask(task)
-                                job.join()
-                                CAPTCHA_SOLUTION = False
+                                job = -1
+                                CAPTCHA_SOLUTION = -1
                                 try:
-                                    CAPTCHA_SOLUTION = job.get_captcha_text()
+                                    job = ACC.createTask(task)
                                 except Exception:
-                                    print( job )
+                                    print('Ошибка создания задания')
+                                    print(job)
                                 else:
-                                    send_solution(CAPTCHA_SOLUTION)
+                                    try:
+                                        job.join()
+                                    except Exception:
+                                        print('Ошибка запуска задания')
+                                        print(job)
+                                    else:
+                                        try:
+                                            CAPTCHA_SOLUTION = job.get_captcha_text()
+                                        except Exception:
+                                            print(job)
+                                            print(CAPTCHA_SOLUTION)
+                                        else:
+                                            send_solution(CAPTCHA_SOLUTION)
                             else:
                                 print('Ручное решение капчи')
                                 bot.send_photo(JSON_Settings['telegrambot_data.chat_id'], open(captcha_file, 'rb'),
