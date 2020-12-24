@@ -794,21 +794,27 @@ def zalooper():
                                 CAPTCHA_SOLUTION = -1
                                 try:
                                     job = ACC.createTask(task)
-                                except Exception:
+                                except Exception as err:
                                     print('Ошибка создания задания')
                                     print(job)
+                                    print(err)
+                                    JSON_Settings['app_data.flags.captcha_need'] = False
                                 else:
                                     try:
                                         job.join()
-                                    except Exception:
+                                    except Exception as err:
                                         print('Ошибка запуска задания')
                                         print(job)
+                                        print(err)
+                                        JSON_Settings['app_data.flags.captcha_need'] = False
                                     else:
                                         try:
                                             CAPTCHA_SOLUTION = job.get_captcha_text()
-                                        except Exception:
+                                        except Exception as err:
                                             print(job)
+                                            print(err)
                                             print(CAPTCHA_SOLUTION)
+                                            JSON_Settings['app_data.flags.captcha_need'] = False
                                         else:
                                             send_solution(CAPTCHA_SOLUTION)
                             else:
