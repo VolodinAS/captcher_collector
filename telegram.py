@@ -164,6 +164,49 @@ def send_solution(solution):
     else:
         bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'Вы отправили не число!')
 
+def send_solution_elka(captcha_url, captcha_solution):
+    if captcha_solution.isdigit():
+        # СНАЧАЛА ПРОВЕРЯЕМ ПАПКУ
+        collected_numbers = os.listdir(JSON_Settings['app_data.system.collection_path'])
+        inBase = False
+        if captcha_solution not in collected_numbers:
+            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Капчи в базе нет... Начинаю сбор...')
+            hash = random.getrandbits(8)
+            captcha_number_path = JSON_Settings['app_data.system.collection_path'] + '/' + solution
+
+            if not os.path.exists(captcha_number_path):
+                os.mkdir(captcha_number_path)
+
+            # СНАЧАЛА СКАЧИВАЕМ
+            for i in range(100):
+                response_captcha = request_post(CAPTCHA_URL)
+                captcha_file = captcha_number_path + '/captcha' + str(i) + '_' + str(hash) + '.' + JSON_Settings[
+                    'app_data.system.captcha_ext']
+                captcha_img = open(captcha_file, 'wb')
+                captcha_img.write(response_captcha.content)
+                captcha_img.close()
+            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Капча ' + solution + ' скопирована')
+        else:
+            inBase = True
+        solution_data = {'kod': captcha_solution}
+
+        response_solution = request_post(captcha_url + '/', data=solution_data)
+
+        # print(response_solution.text)
+
+        if response_solution.text.find('дал добро') > -1:
+            JSON_Settings['app_data.flags.captcha_need'] = False
+            HTML_FOIZ_WOW_PAGE = response_solution.text
+            if inBase:
+                bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
+                                 'ELKA: Капча решена верно! Число уже было в базе...')
+            else:
+                bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
+                                 'ELKA: Капча решена верно! Число добавлено в базу!')
+
+    else:
+        bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Вы отправили не число!')
+
 
 @bot.message_handler(content_types=["text"])
 def repeat_all_messages(message):
@@ -586,7 +629,7 @@ def makeWowGreatAgain():
 
 
 def parseElkaPage():
-    global HTML_FOIZ_ELKA_PAGE
+    global HTML_FOIZ_ELKA_PAGE, CS, JSON_Settings
     # 1 - заходим на сайт, в раздел ёлки, получаем страницу
     requestSuccess = False
     response_elka_main = request_get(JSON_Settings['foiz_data.urls.elka'])
@@ -600,34 +643,49 @@ def parseElkaPage():
         if html_string.find('роверка') > -1:
             # 2.1 - нашел капчу, нанахожу ответ
             elka_soup = BeautifulSoup(response_elka_main.text, 'html.parser')
-            form_captcha = elka_soup.select('form[class="iform"]')
-            if len(form_captcha) > 0:
-                captcha_tag = form_captcha[0].find('b')
-                captcha_string = captcha_tag.string
-                if len(captcha_string):
-
-                    post_data = {
-                        'kod': captcha_string
-                    }
-                    response_elka_captcha = request_post(JSON_Settings['foiz_data.urls.elka'] + '/?', data=post_data)
-                    if response_elka_captcha != -1:
-                        requestSuccess = True
-
-                    if requestSuccess:
-                        html_string = response_elka_captcha.text
-                        if html_string.find('дал добро') > -1:
-                            # 2.2 - капча решена верно, мы на главной странице
-                            HTML_FOIZ_ELKA_PAGE = html_string
-                            # parseElkaPage()
-                        else:
-                            print('ПРОБЛЕМА С  РЕШЕНИЕМ КАПЧИ')
-                            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ПРОБЛЕМА С РЕШЕНИЕМ КАПЧИ')
-                    else:
-                        print('ПРОБЛЕМА С  ОТПРАВКОЙ КАПЧИ')
-                        bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ПРОБЛЕМА С  ОТПРАВКОЙ КАПЧИ')
+            # form_captcha = elka_soup.select('form[class="iform"]')
+            captcha = elka_soup.select('img[src*="captcha"]')
+            if len(captcha) > 0:
+                captcha_url = JSON_Settings['foiz_data.urls.site'] + captcha[0]['src']
+                response_captcha = request_get(captcha_url)
+                captcha_file = JSON_Settings['app_data.system.captcha_path'] + '/captcha.' + JSON_Settings[
+                    'app_data.system.captcha_ext']
+                # print(captcha_file)
+                captcha_img = open(captcha_file, 'wb')
+                captcha_img.write(response_captcha.content)
+                captcha_img.close()
+                # print(captcha)
+                # exit()
+                captcha_fp = open(captcha_file, 'rb')
+                task = ImageToTextTask(fp=captcha_fp, numeric=1)
+                job = -1
+                CAPTCHA_SOLUTION = -1
+                try:
+                    job = ACC.createTask(task)
+                except Exception as err:
+                    print('Ошибка создания задания')
+                    print(job)
+                    print(err)
+                    JSON_Settings['app_data.flags.captcha_need'] = False
                 else:
-                    print('ПРОБЛЕМА С КАПЧЕЙ')
-                    bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'Проблема с КАПЧЕЙ')
+                    try:
+                        job.join()
+                    except Exception as err:
+                        print('Ошибка запуска задания')
+                        print(job)
+                        print(err)
+                        JSON_Settings['app_data.flags.captcha_need'] = False
+                    else:
+                        try:
+                            CAPTCHA_SOLUTION = job.get_captcha_text()
+                        except Exception as err:
+                            print(job)
+                            print(err)
+                            print(CAPTCHA_SOLUTION)
+                            JSON_Settings['app_data.flags.captcha_need'] = False
+                        else:
+                            send_solution_elka(JSON_Settings['foiz_data.urls.elka'] + '/?', CAPTCHA_SOLUTION)
+
             else:
                 print('КАПЧИ НЕТ 2')
         else:
@@ -786,8 +844,7 @@ def zalooper():
                                 print('Использую AntiCaptcha')
                                 # BALANCE = ACC.getBalance()
                                 # print(f"BALANCE: {BALANCE}, BALANCE-type: { type(BALANCE) }")
-                                bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
-                                                 'ВНИМАНИЕ! Пошла антикапча!')
+                                # bot.send_message(JSON_Settings['telegrambot_data.chat_id'],'ВНИМАНИЕ! Пошла антикапча!')
                                 captcha_fp = open(captcha_file, 'rb')
                                 task = ImageToTextTask(fp=captcha_fp, numeric=1)
                                 job = -1
