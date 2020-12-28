@@ -37,11 +37,13 @@ myThread = 0
 commands1 = ['/start', '/status']
 commands2 = ['/base', '/reset']
 commands3 = ['/stop', '/restart']
+commands4 = ['/elka']
 
 keyboard = types.ReplyKeyboardMarkup(True)
 keyboard.row(*commands1)
 keyboard.row(*commands2)
 keyboard.row(*commands3)
+keyboard.row(*commands4)
 
 HTML_FOIZ_ELKA_PAGE = ''
 HTML_FOIZ_WOW_PAGE = ''
@@ -53,6 +55,11 @@ GOLD = -1
 
 diff = 0
 
+WOW_ARENA_ATTACK_ME = 0
+WOW_ARENA_DEFENCE_ME = 1
+WOW_ARENA_ATTACK_ENEMY = 5
+WOW_ARENA_DEFENCE_ENEMY = 6
+
 EFFECT_TIME_REMAIN = -1
 
 IMIN_shakta = False
@@ -60,7 +67,7 @@ IMIN_patrul = False
 IMIN_pole = False
 
 
-def request_get(url, data=None):
+def request_get(url, data=None, sleeper=True):
     global foiz, CS, JSON_Settings
     response = -1
     if data is None:
@@ -71,12 +78,13 @@ def request_get(url, data=None):
     except Exception:
         print('Возникла ошибка при GET-запросе на ' + url)
     finally:
-        tout = random.random() * JSON_Settings['app_data.system.randomperiod']
-        time.sleep(tout)
+        if sleeper:
+            tout = random.random() * JSON_Settings['app_data.system.randomperiod']
+            time.sleep(tout)
         return response
 
 
-def request_post(url, data=None):
+def request_post(url, data=None, sleeper=True):
     global foiz, CS, JSON_Settings
     response = -1
     if data is None:
@@ -87,10 +95,16 @@ def request_post(url, data=None):
     except Exception:
         print('Возникла ошибка при POST-запросе на ' + url)
     finally:
-        tout = random.random() * JSON_Settings['app_data.system.randomperiod']
-        time.sleep(tout)
+        if sleeper:
+            tout = random.random() * JSON_Settings['app_data.system.randomperiod']
+            time.sleep(tout)
         return response
 
+def get_digits(txt):
+    txt = txt.text
+    txt = re.findall(r'\d+', txt)
+    num = ''.join([str(elem) for elem in txt])
+    return int(num)
 
 def newMessages():
     global HTML_FOIZ_WOW_PAGE, CS, JSON_Settings
@@ -172,20 +186,20 @@ def send_solution_elka(captcha_url, captcha_solution):
         if captcha_solution not in collected_numbers:
             bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Капчи в базе нет... Начинаю сбор...')
             hash = random.getrandbits(8)
-            captcha_number_path = JSON_Settings['app_data.system.collection_path'] + '/' + solution
+            captcha_number_path = JSON_Settings['app_data.system.collection_path'] + '/' + captcha_solution
 
             if not os.path.exists(captcha_number_path):
                 os.mkdir(captcha_number_path)
 
             # СНАЧАЛА СКАЧИВАЕМ
             for i in range(100):
-                response_captcha = request_post(CAPTCHA_URL)
+                response_captcha = request_post(CAPTCHA_URL, data=None, sleeper=False)
                 captcha_file = captcha_number_path + '/captcha' + str(i) + '_' + str(hash) + '.' + JSON_Settings[
                     'app_data.system.captcha_ext']
                 captcha_img = open(captcha_file, 'wb')
                 captcha_img.write(response_captcha.content)
                 captcha_img.close()
-            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Капча ' + solution + ' скопирована')
+            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Капча ' + captcha_solution + ' скопирована')
         else:
             inBase = True
         solution_data = {'kod': captcha_solution}
@@ -199,10 +213,10 @@ def send_solution_elka(captcha_url, captcha_solution):
             HTML_FOIZ_WOW_PAGE = response_solution.text
             if inBase:
                 bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
-                                 'ELKA: Капча решена верно! Число уже было в базе...')
+                                 'ELKA: Капча '+captcha_solution+' решена верно! Число уже было в базе...')
             else:
                 bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
-                                 'ELKA: Капча решена верно! Число добавлено в базу!')
+                                 'ELKA: Капча '+captcha_solution+' решена верно! Число добавлено в базу!')
 
     else:
         bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Вы отправили не число!')
@@ -258,6 +272,13 @@ def repeat_all_messages(message):
         print('• Рестарт цикла')
         JSON_Settings['app_data.flags.stop_program'] = False
         bot.send_message(message.chat.id, 'Рестарт цикла...')
+    elif message.text == '/elka':
+        print('• Ёлочка')
+        if JSON_Settings['app_data.flags.goelka']:
+            JSON_Settings['app_data.flags.goelka'] = False
+        else:
+            JSON_Settings['app_data.flags.goelka'] = True
+        bot.send_message(message.chat.id, f"Режим ёлочки - {JSON_Settings['app_data.flags.goelka']}")
     elif message.text == '/status':
         print('• Статус сервера')
         today = datetime.datetime.today()
@@ -286,6 +307,7 @@ def makeWowGreatAgain():
     global HTML_FOIZ_WOW_PAGE, ENERGY, SILVER, GOLD, EFFECT_TIME_REMAIN, IMIN_shakta, IMIN_patrul, IMIN_pole, CS, JSON_Settings
     IMIN_shakta = IMIN_pole = IMIN_patrul = False
     AccessToShakta = False
+    ARENA = -1
     soup = BeautifulSoup(HTML_FOIZ_WOW_PAGE, 'html.parser')
     div_body = soup.select('div[class="body"]')
     if len(div_body) > 0:
@@ -316,6 +338,121 @@ def makeWowGreatAgain():
                         print('GOLD:', GOLD)
                         print('SILVER:', SILVER)
                         print('ENERGY:', ENERGY)
+
+                        arena = stats.select('a[href*="arena"]')
+                        if len(arena) > 0:
+                            arena_text = arena[0].text
+                            arena_data = arena_text.split('/')
+                            granted_battles = int( arena_data[0] )
+                            total_battles = int( arena_data[1] )
+                            if granted_battles < total_battles:
+                                print(':::::::::: <АРЕНА> ::::::::::')
+                                while granted_battles < total_battles:
+                                    go_attack = False
+                                    response_arena = request_get(JSON_Settings['foiz_data.urls.wow.arena2lvls'], data=None, sleeper=False)
+                                    if response_arena != -1:
+                                        soup_arena = BeautifulSoup(response_arena.text, 'html.parser')
+                                        div_stats = soup_arena.select('div > div.param_st')
+                                        if len(div_stats) == 10:
+                                            my_attack = div_stats[WOW_ARENA_ATTACK_ME]
+                                            my_attack = get_digits(my_attack)
+
+                                            my_defence = div_stats[WOW_ARENA_DEFENCE_ME]
+                                            my_defence = get_digits(my_defence)
+
+                                            enemy_attack = div_stats[WOW_ARENA_ATTACK_ENEMY]
+                                            enemy_attack = get_digits(enemy_attack)
+
+                                            enemy_defence = div_stats[WOW_ARENA_DEFENCE_ENEMY]
+                                            enemy_defence = get_digits(enemy_defence)
+
+                                            diff_attack = round( (my_attack / enemy_attack) * 10000 ) / 100
+                                            diff_defence = round( (my_defence / enemy_defence) * 10000 ) / 100
+
+                                            print(
+                                                f"ТЫ: |{my_attack}|&|{my_defence}| vs. ВРАГ: |{enemy_attack}|&|{enemy_defence}|")
+                                            print(f"СООТНОШЕНИЕ АТАКИ: |{diff_attack}%|")
+                                            print(f"СООТНОШЕНИЕ ЗАЩИТЫ: |{diff_defence}%|")
+
+                                            if diff_attack >= 100 and diff_attack <= 120:
+                                                # A >= 100
+                                                print('- моя атака больше')
+                                                if diff_defence < 95:
+                                                    print('- вражеский щит сильнее')
+                                                    continue
+                                                else:
+                                                    print('- соотношения приемлемые, атака')
+                                                    go_attack = True
+                                            else:
+                                                # A < 100
+                                                print('- моя атака меньше, проверяем щиты')
+                                                if diff_attack >= 90:
+                                                    # 100 > A >= 90
+                                                    print('- атака меньше 10%')
+                                                    if diff_defence > 100:
+                                                        # D > 100
+                                                        print('- щиты больше вражеского, атака')
+                                                        go_attack = True
+                                                    else:
+                                                        continue
+
+                                            if go_attack:
+                                                form_attack_id = -1
+                                                form_attack_rand = -1
+                                                # input_ok = soup_arena.select('form > input[name="yes"][value="ok"]')
+                                                input_ok = soup_arena.find_all("input", attrs={'name':'yes', 'value':'ok'})
+                                                if len(input_ok) > 0:
+                                                    # print('input_ok: ', input_ok)
+                                                    input_ok = input_ok[0]
+                                                    form_attack = input_ok.parent
+                                                    # print('form_attack: ', form_attack)
+                                                    input_id = form_attack.find("input", attrs={'name':'id'})
+                                                    input_rand = form_attack.find("input", attrs={'name':'rand'})
+                                                    form_attack_id = input_id['value']
+                                                    form_attack_rand = input_rand['value']
+                                                    # print('input_id: ', input_id)
+                                                    # print('input_rand: ', input_rand)
+                                                    attack_data = {
+                                                        'mod': 'ataka2',
+                                                        'id': form_attack_id,
+                                                        'rand': form_attack_rand,
+                                                        'yes': 'ok'
+                                                    }
+                                                    print('attack_data:', attack_data)
+                                                    url_attack = f"{JSON_Settings['foiz_data.urls.wow.arena2lvls.go']}mod=ataka2&id={form_attack_id}&rand={form_attack_rand}&yes=ok"
+                                                    response_attack = request_get(url_attack, sleeper=False)
+                                                    soup_end = BeautifulSoup(response_attack.text, 'html.parser')
+                                                    div_body = soup_end.select('div[class="body"]')
+                                                    if len(div_body) > 0:
+                                                        div_body = div_body[0]
+                                                        div_p_m = div_body.select('div[class="p_m"]')
+                                                        if len(div_p_m) > 0:
+                                                            stats = div_p_m[0]
+                                                            arena = stats.select('a[href*="arena"]')
+                                                            if len(arena) > 0:
+                                                                arena_text = arena[0].text
+                                                                arena_data = arena_text.split('/')
+                                                                granted_battles = int(arena_data[0])
+                                                                total_battles = int(arena_data[1])
+                                                print(f"Битвы: {granted_battles} / {total_battles}")
+                                                # break
+                                            print(' ')
+
+                                            # if diff_attack > 0:
+                                            #     # моя атака больше
+                                            #     if diff_attack < 3000:
+                                            #         # атакуй
+                                            #     else:
+                                            #         continue
+                                            # else:
+
+                                        else:
+                                            print('Проблемы с получением статов')
+
+                                    else:
+                                        print('Проблема с получением арены')
+                                    # break
+                                print(':::::::::: </АРЕНА> ::::::::::')
 
                         if ENERGY < 207:
                             if JSON_Settings['app_data.flags.use_potion']:
@@ -893,9 +1030,12 @@ def zalooper():
 
     # jprint(JSON_Settings)
 
-    print('------------------------------------- <ELKA> -------------------------------------')
-    parseElkaPage()
-    print('------------------------------------- </ELKA> -------------------------------------')
+
+    if JSON_Settings['app_data.flags.goelka']:
+        print('------------------------------------- <ELKA> -------------------------------------')
+        parseElkaPage()
+        print('------------------------------------- </ELKA> -------------------------------------')
+
 
     print('------------------------------------- <MESSAGES> -------------------------------------')
     newMessages()
