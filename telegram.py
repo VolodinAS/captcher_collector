@@ -374,15 +374,18 @@ def makeWowGreatAgain():
                                             print(f"СООТНОШЕНИЕ АТАКИ: |{diff_attack}%|")
                                             print(f"СООТНОШЕНИЕ ЗАЩИТЫ: |{diff_defence}%|")
 
-                                            if diff_attack >= 100 and diff_attack <= 120:
+                                            if diff_attack >= 100:
                                                 # A >= 100
-                                                print('- моя атака больше')
-                                                if diff_defence < 95:
-                                                    print('- вражеский щит сильнее')
-                                                    continue
+                                                if diff_attack <= 120:
+                                                    print('- моя атака больше')
+                                                    if diff_defence < 95:
+                                                        print('- вражеский щит сильнее')
+                                                        continue
+                                                    else:
+                                                        print('- соотношения приемлемые, атака')
+                                                        go_attack = True
                                                 else:
-                                                    print('- соотношения приемлемые, атака')
-                                                    go_attack = True
+                                                    continue
                                             else:
                                                 # A < 100
                                                 print('- моя атака меньше, проверяем щиты')
