@@ -144,7 +144,7 @@ def send_solution(url, solution, field, type='WOW'):
         inBase = True
         solution_data = {field: solution}
 
-        response_solution = request_post(JSON_Settings['foiz_data.urls.wow'] + '/', data=solution_data)
+        response_solution = request_post(url, data=solution_data)
 
         if response_solution.text.find('получен') > -1:
             JSON_Settings['app_data.flags.captcha_need'] = False
