@@ -100,11 +100,13 @@ def request_post(url, data=None, sleeper=True):
             time.sleep(tout)
         return response
 
+
 def get_digits(txt):
     txt = txt.text
     txt = re.findall(r'\d+', txt)
     num = ''.join([str(elem) for elem in txt])
     return int(num)
+
 
 def newMessages():
     global HTML_FOIZ_WOW_PAGE, CS, JSON_Settings
@@ -134,92 +136,28 @@ def newMessages():
     # exit()
 
 
-def send_solution(solution):
+def send_solution(url, solution, field, type='WOW'):
     global CAPTCHA_URL, bot, CS, JSON_Settings, HTML_FOIZ_WOW_PAGE
     if solution.isdigit():
         # СНАЧАЛА ПРОВЕРЯЕМ ПАПКУ
         collected_numbers = os.listdir(JSON_Settings['app_data.system.collection_path'])
-        inBase = False
-        if solution not in collected_numbers:
-            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'Капчи в базе нет... Начинаю сбор...')
-            hash = random.getrandbits(8)
-            captcha_number_path = JSON_Settings['app_data.system.collection_path'] + '/' + solution
-
-            if not os.path.exists(captcha_number_path):
-                os.mkdir(captcha_number_path)
-
-            # СНАЧАЛА СКАЧИВАЕМ
-            for i in range(100):
-                response_captcha = request_post(CAPTCHA_URL)
-                captcha_file = captcha_number_path + '/captcha' + str(i) + '_' + str(hash) + '.' + JSON_Settings[
-                    'app_data.system.captcha_ext']
-                captcha_img = open(captcha_file, 'wb')
-                captcha_img.write(response_captcha.content)
-                captcha_img.close()
-            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'Капча ' + solution + ' скопирована')
-        else:
-            inBase = True
-        solution_data = {'chisloGM': solution}
+        inBase = True
+        solution_data = {field: solution}
 
         response_solution = request_post(JSON_Settings['foiz_data.urls.wow'] + '/', data=solution_data)
-
-        # print(response_solution.text)
 
         if response_solution.text.find('получен') > -1:
             JSON_Settings['app_data.flags.captcha_need'] = False
             HTML_FOIZ_WOW_PAGE = response_solution.text
             if inBase:
                 bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
-                                 'Капча решена верно! Число уже было в базе...')
+                                 type + ': Капча '+solution+' решена верно! Число уже было в базе...')
             else:
                 bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
-                                 'Капча решена верно! Число добавлено в базу!')
+                                 type + ': Капча '+solution+' решена верно! Число добавлено в базу!')
 
     else:
-        bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'Вы отправили не число!')
-
-def send_solution_elka(captcha_url, captcha_solution):
-    if captcha_solution.isdigit():
-        # СНАЧАЛА ПРОВЕРЯЕМ ПАПКУ
-        collected_numbers = os.listdir(JSON_Settings['app_data.system.collection_path'])
-        inBase = False
-        if captcha_solution not in collected_numbers:
-            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Капчи в базе нет... Начинаю сбор...')
-            hash = random.getrandbits(8)
-            captcha_number_path = JSON_Settings['app_data.system.collection_path'] + '/' + captcha_solution
-
-            if not os.path.exists(captcha_number_path):
-                os.mkdir(captcha_number_path)
-
-            # СНАЧАЛА СКАЧИВАЕМ
-            for i in range(100):
-                response_captcha = request_post(CAPTCHA_URL, data=None, sleeper=False)
-                captcha_file = captcha_number_path + '/captcha' + str(i) + '_' + str(hash) + '.' + JSON_Settings[
-                    'app_data.system.captcha_ext']
-                captcha_img = open(captcha_file, 'wb')
-                captcha_img.write(response_captcha.content)
-                captcha_img.close()
-            bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Капча ' + captcha_solution + ' скопирована')
-        else:
-            inBase = True
-        solution_data = {'kod': captcha_solution}
-
-        response_solution = request_post(captcha_url + '/', data=solution_data)
-
-        # print(response_solution.text)
-
-        if response_solution.text.find('дал добро') > -1:
-            JSON_Settings['app_data.flags.captcha_need'] = False
-            HTML_FOIZ_WOW_PAGE = response_solution.text
-            if inBase:
-                bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
-                                 'ELKA: Капча '+captcha_solution+' решена верно! Число уже было в базе...')
-            else:
-                bot.send_message(JSON_Settings['telegrambot_data.chat_id'],
-                                 'ELKA: Капча '+captcha_solution+' решена верно! Число добавлено в базу!')
-
-    else:
-        bot.send_message(JSON_Settings['telegrambot_data.chat_id'], 'ELKA: Вы отправили не число!')
+        bot.send_message(JSON_Settings['telegrambot_data.chat_id'], type + 'Вы отправили не число '+solution+'!')
 
 
 @bot.message_handler(content_types=["text"])
@@ -298,7 +236,8 @@ def repeat_all_messages(message):
     elif message.text.find('.') > -1:
         # решение капчи
         captcha_solution_number = message.text[1:]
-        send_solution(solution=captcha_solution_number)
+        curl = JSON_Settings['foiz_data.urls.wow'] + '/'
+        send_solution(url=curl, solution=captcha_solution_number, field='chisloGM')
     else:
         bot.send_message(message.chat.id, 'Неизвестная команда')
 
@@ -339,17 +278,36 @@ def makeWowGreatAgain():
                         print('SILVER:', SILVER)
                         print('ENERGY:', ENERGY)
 
+                        shakta = moneybar.select('a[href*=shakta]')
+                        if len(shakta) > 0:
+                            # проверяем шахту
+                            print(shakta)
+                            IMIN_shakta = True
+
+                        patrul = moneybar.select('a[href*=patrul]')
+                        if len(patrul) > 0:
+                            # проверяем патруль
+                            print(patrul)
+                            IMIN_patrul = True
+
+                        pole = moneybar.select('a[href*=pole]')
+                        if len(pole) > 0:
+                            # проверяем пещеру
+                            print(pole)
+                            IMIN_pole = True
+
                         arena = stats.select('a[href*="arena"]')
-                        if len(arena) > 0:
+                        if len(arena) > 0 and not IMIN_shakta:
                             arena_text = arena[0].text
                             arena_data = arena_text.split('/')
-                            granted_battles = int( arena_data[0] )
-                            total_battles = int( arena_data[1] )
+                            granted_battles = int(arena_data[0])
+                            total_battles = int(arena_data[1])
                             if granted_battles < total_battles:
                                 print(':::::::::: <АРЕНА> ::::::::::')
                                 while granted_battles < total_battles:
                                     go_attack = False
-                                    response_arena = request_get(JSON_Settings['foiz_data.urls.wow.arena2lvls'], data=None, sleeper=False)
+                                    response_arena = request_get(JSON_Settings['foiz_data.urls.wow.arena2lvls'],
+                                                                 data=None, sleeper=False)
                                     if response_arena != -1:
                                         soup_arena = BeautifulSoup(response_arena.text, 'html.parser')
                                         div_stats = soup_arena.select('div > div.param_st')
@@ -366,8 +324,8 @@ def makeWowGreatAgain():
                                             enemy_defence = div_stats[WOW_ARENA_DEFENCE_ENEMY]
                                             enemy_defence = get_digits(enemy_defence)
 
-                                            diff_attack = round( (my_attack / enemy_attack) * 10000 ) / 100
-                                            diff_defence = round( (my_defence / enemy_defence) * 10000 ) / 100
+                                            diff_attack = round((my_attack / enemy_attack) * 10000) / 100
+                                            diff_defence = round((my_defence / enemy_defence) * 10000) / 100
 
                                             print(
                                                 f"ТЫ: |{my_attack}|&|{my_defence}| vs. ВРАГ: |{enemy_attack}|&|{enemy_defence}|")
@@ -403,14 +361,15 @@ def makeWowGreatAgain():
                                                 form_attack_id = -1
                                                 form_attack_rand = -1
                                                 # input_ok = soup_arena.select('form > input[name="yes"][value="ok"]')
-                                                input_ok = soup_arena.find_all("input", attrs={'name':'yes', 'value':'ok'})
+                                                input_ok = soup_arena.find_all("input",
+                                                                               attrs={'name': 'yes', 'value': 'ok'})
                                                 if len(input_ok) > 0:
                                                     # print('input_ok: ', input_ok)
                                                     input_ok = input_ok[0]
                                                     form_attack = input_ok.parent
                                                     # print('form_attack: ', form_attack)
-                                                    input_id = form_attack.find("input", attrs={'name':'id'})
-                                                    input_rand = form_attack.find("input", attrs={'name':'rand'})
+                                                    input_id = form_attack.find("input", attrs={'name': 'id'})
+                                                    input_rand = form_attack.find("input", attrs={'name': 'rand'})
                                                     form_attack_id = input_id['value']
                                                     form_attack_rand = input_rand['value']
                                                     # print('input_id: ', input_id)
@@ -474,23 +433,7 @@ def makeWowGreatAgain():
                             else:
                                 print('Энергии нет, использование зелья отключено')
 
-                        shakta = moneybar.select('a[href*=shakta]')
-                        if len(shakta) > 0:
-                            # проверяем шахту
-                            print(shakta)
-                            IMIN_shakta = True
 
-                        patrul = moneybar.select('a[href*=patrul]')
-                        if len(patrul) > 0:
-                            # проверяем патруль
-                            print(patrul)
-                            IMIN_patrul = True
-
-                        pole = moneybar.select('a[href*=pole]')
-                        if len(pole) > 0:
-                            # проверяем пещеру
-                            print(pole)
-                            IMIN_pole = True
 
                         youCanGo = False
                         effectActive = False
@@ -824,7 +767,8 @@ def parseElkaPage():
                             print(CAPTCHA_SOLUTION)
                             JSON_Settings['app_data.flags.captcha_need'] = False
                         else:
-                            send_solution_elka(JSON_Settings['foiz_data.urls.elka'] + '/?', CAPTCHA_SOLUTION)
+                            curl = JSON_Settings['foiz_data.urls.elka'] + '/?'
+                            send_solution(url=curl, solution=CAPTCHA_SOLUTION, field='kod', type='ELKA')
 
             else:
                 print('КАПЧИ НЕТ 2')
@@ -1013,7 +957,9 @@ def zalooper():
                                             print(CAPTCHA_SOLUTION)
                                             JSON_Settings['app_data.flags.captcha_need'] = False
                                         else:
-                                            send_solution(CAPTCHA_SOLUTION)
+                                            # send_solution(CAPTCHA_SOLUTION)
+                                            curl = JSON_Settings['foiz_data.urls.wow'] + '/'
+                                            send_solution(url=curl, solution=CAPTCHA_SOLUTION, field='chisloGM')
                             else:
                                 print('Ручное решение капчи')
                                 bot.send_photo(JSON_Settings['telegrambot_data.chat_id'], open(captcha_file, 'rb'),
@@ -1033,12 +979,10 @@ def zalooper():
 
     # jprint(JSON_Settings)
 
-
     if JSON_Settings['app_data.flags.goelka']:
         print('------------------------------------- <ELKA> -------------------------------------')
         parseElkaPage()
         print('------------------------------------- </ELKA> -------------------------------------')
-
 
     print('------------------------------------- <MESSAGES> -------------------------------------')
     newMessages()
