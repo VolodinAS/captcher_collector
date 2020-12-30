@@ -297,7 +297,7 @@ def makeWowGreatAgain():
                             IMIN_pole = True
 
                         arena = stats.select('a[href*="arena"]')
-                        if len(arena) > 0 and not IMIN_shakta:
+                        if len(arena) > 0 and not IMIN_shakta and ENERGY >= 24:
                             arena_text = arena[0].text
                             arena_data = arena_text.split('/')
                             granted_battles = int(arena_data[0])
