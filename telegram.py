@@ -37,7 +37,7 @@ myThread = 0
 commands1 = ['/start', '/status']
 commands2 = ['/base', '/reset']
 commands3 = ['/stop', '/restart']
-commands4 = ['/elka']
+commands4 = ['/elka', '/arena']
 
 keyboard = types.ReplyKeyboardMarkup(True)
 keyboard.row(*commands1)
@@ -217,6 +217,13 @@ def repeat_all_messages(message):
         else:
             JSON_Settings['app_data.flags.goelka'] = True
         bot.send_message(message.chat.id, f"Режим ёлочки - {JSON_Settings['app_data.flags.goelka']}")
+    elif message.text == '/arena':
+        print('• Ёлочка')
+        if JSON_Settings['app_data.flags.goarena']:
+            JSON_Settings['app_data.flags.goarena'] = False
+        else:
+            JSON_Settings['app_data.flags.goarena'] = True
+        bot.send_message(message.chat.id, f"Режим арены - {JSON_Settings['app_data.flags.goarena']}")
     elif message.text == '/status':
         print('• Статус сервера')
         today = datetime.datetime.today()
@@ -296,125 +303,129 @@ def makeWowGreatAgain():
                             print(pole)
                             IMIN_pole = True
 
+                        print(':::::::::: <АРЕНА> ::::::::::')
                         arena = stats.select('a[href*="arena"]')
-                        if len(arena) > 0 and not IMIN_shakta and ENERGY >= 24:
-                            arena_text = arena[0].text
-                            arena_data = arena_text.split('/')
-                            granted_battles = int(arena_data[0])
-                            total_battles = int(arena_data[1])
-                            if granted_battles < total_battles:
-                                print(':::::::::: <АРЕНА> ::::::::::')
-                                while granted_battles < total_battles:
-                                    go_attack = False
-                                    response_arena = request_get(JSON_Settings['foiz_data.urls.wow.arena2lvls'],
-                                                                 data=None, sleeper=False)
-                                    if response_arena != -1:
-                                        soup_arena = BeautifulSoup(response_arena.text, 'html.parser')
-                                        div_stats = soup_arena.select('div > div.param_st')
-                                        if len(div_stats) == 10:
-                                            my_attack = div_stats[WOW_ARENA_ATTACK_ME]
-                                            my_attack = get_digits(my_attack)
+                        if JSON_Settings['app_data.flags.goarena']:
+                            if len(arena) > 0 and not IMIN_shakta and ENERGY >= 24:
+                                arena_text = arena[0].text
+                                arena_data = arena_text.split('/')
+                                granted_battles = int(arena_data[0])
+                                total_battles = int(arena_data[1])
+                                if granted_battles < total_battles:
 
-                                            my_defence = div_stats[WOW_ARENA_DEFENCE_ME]
-                                            my_defence = get_digits(my_defence)
+                                    while granted_battles < total_battles:
+                                        go_attack = False
+                                        response_arena = request_get(JSON_Settings['foiz_data.urls.wow.arena2lvls'],
+                                                                     data=None, sleeper=False)
+                                        if response_arena != -1:
+                                            soup_arena = BeautifulSoup(response_arena.text, 'html.parser')
+                                            div_stats = soup_arena.select('div > div.param_st')
+                                            if len(div_stats) == 10:
+                                                my_attack = div_stats[WOW_ARENA_ATTACK_ME]
+                                                my_attack = get_digits(my_attack)
 
-                                            enemy_attack = div_stats[WOW_ARENA_ATTACK_ENEMY]
-                                            enemy_attack = get_digits(enemy_attack)
+                                                my_defence = div_stats[WOW_ARENA_DEFENCE_ME]
+                                                my_defence = get_digits(my_defence)
 
-                                            enemy_defence = div_stats[WOW_ARENA_DEFENCE_ENEMY]
-                                            enemy_defence = get_digits(enemy_defence)
+                                                enemy_attack = div_stats[WOW_ARENA_ATTACK_ENEMY]
+                                                enemy_attack = get_digits(enemy_attack)
 
-                                            diff_attack = round((my_attack / enemy_attack) * 10000) / 100
-                                            diff_defence = round((my_defence / enemy_defence) * 10000) / 100
+                                                enemy_defence = div_stats[WOW_ARENA_DEFENCE_ENEMY]
+                                                enemy_defence = get_digits(enemy_defence)
 
-                                            print(
-                                                f"ТЫ: |{my_attack}|&|{my_defence}| vs. ВРАГ: |{enemy_attack}|&|{enemy_defence}|")
-                                            print(f"СООТНОШЕНИЕ АТАКИ: |{diff_attack}%|")
-                                            print(f"СООТНОШЕНИЕ ЗАЩИТЫ: |{diff_defence}%|")
+                                                diff_attack = round((my_attack / enemy_attack) * 10000) / 100
+                                                diff_defence = round((my_defence / enemy_defence) * 10000) / 100
 
-                                            if diff_attack >= 100:
-                                                # A >= 100
-                                                if diff_attack <= 120:
-                                                    print('- моя атака больше')
-                                                    if diff_defence < 95:
-                                                        print('- вражеский щит сильнее')
-                                                        continue
+                                                print(
+                                                    f"ТЫ: |{my_attack}|&|{my_defence}| vs. ВРАГ: |{enemy_attack}|&|{enemy_defence}|")
+                                                print(f"СООТНОШЕНИЕ АТАКИ: |{diff_attack}%|")
+                                                print(f"СООТНОШЕНИЕ ЗАЩИТЫ: |{diff_defence}%|")
+
+                                                if diff_attack >= 100:
+                                                    # A >= 100
+                                                    if diff_attack <= 120:
+                                                        print('- моя атака больше')
+                                                        if diff_defence < 95:
+                                                            print('- вражеский щит сильнее')
+                                                            continue
+                                                        else:
+                                                            print('- соотношения приемлемые, атака')
+                                                            go_attack = True
                                                     else:
-                                                        print('- соотношения приемлемые, атака')
-                                                        go_attack = True
+                                                        continue
                                                 else:
-                                                    continue
+                                                    # A < 100
+                                                    print('- моя атака меньше, проверяем щиты')
+                                                    if diff_attack >= 90:
+                                                        # 100 > A >= 90
+                                                        print('- атака меньше 10%')
+                                                        if diff_defence > 100:
+                                                            # D > 100
+                                                            print('- щиты больше вражеского, атака')
+                                                            go_attack = True
+                                                        else:
+                                                            continue
+
+                                                if go_attack:
+                                                    form_attack_id = -1
+                                                    form_attack_rand = -1
+                                                    # input_ok = soup_arena.select('form > input[name="yes"][value="ok"]')
+                                                    input_ok = soup_arena.find_all("input",
+                                                                                   attrs={'name': 'yes', 'value': 'ok'})
+                                                    if len(input_ok) > 0:
+                                                        # print('input_ok: ', input_ok)
+                                                        input_ok = input_ok[0]
+                                                        form_attack = input_ok.parent
+                                                        # print('form_attack: ', form_attack)
+                                                        input_id = form_attack.find("input", attrs={'name': 'id'})
+                                                        input_rand = form_attack.find("input", attrs={'name': 'rand'})
+                                                        form_attack_id = input_id['value']
+                                                        form_attack_rand = input_rand['value']
+                                                        # print('input_id: ', input_id)
+                                                        # print('input_rand: ', input_rand)
+                                                        attack_data = {
+                                                            'mod': 'ataka2',
+                                                            'id': form_attack_id,
+                                                            'rand': form_attack_rand,
+                                                            'yes': 'ok'
+                                                        }
+                                                        print('attack_data:', attack_data)
+                                                        url_attack = f"{JSON_Settings['foiz_data.urls.wow.arena2lvls.go']}mod=ataka2&id={form_attack_id}&rand={form_attack_rand}&yes=ok"
+                                                        response_attack = request_get(url_attack, sleeper=False)
+                                                        soup_end = BeautifulSoup(response_attack.text, 'html.parser')
+                                                        div_body = soup_end.select('div[class="body"]')
+                                                        if len(div_body) > 0:
+                                                            div_body = div_body[0]
+                                                            div_p_m = div_body.select('div[class="p_m"]')
+                                                            if len(div_p_m) > 0:
+                                                                stats = div_p_m[0]
+                                                                arena = stats.select('a[href*="arena"]')
+                                                                if len(arena) > 0:
+                                                                    arena_text = arena[0].text
+                                                                    arena_data = arena_text.split('/')
+                                                                    granted_battles = int(arena_data[0])
+                                                                    total_battles = int(arena_data[1])
+                                                    print(f"Битвы: {granted_battles} / {total_battles}")
+                                                    # break
+                                                print(' ')
+
+                                                # if diff_attack > 0:
+                                                #     # моя атака больше
+                                                #     if diff_attack < 3000:
+                                                #         # атакуй
+                                                #     else:
+                                                #         continue
+                                                # else:
+
                                             else:
-                                                # A < 100
-                                                print('- моя атака меньше, проверяем щиты')
-                                                if diff_attack >= 90:
-                                                    # 100 > A >= 90
-                                                    print('- атака меньше 10%')
-                                                    if diff_defence > 100:
-                                                        # D > 100
-                                                        print('- щиты больше вражеского, атака')
-                                                        go_attack = True
-                                                    else:
-                                                        continue
-
-                                            if go_attack:
-                                                form_attack_id = -1
-                                                form_attack_rand = -1
-                                                # input_ok = soup_arena.select('form > input[name="yes"][value="ok"]')
-                                                input_ok = soup_arena.find_all("input",
-                                                                               attrs={'name': 'yes', 'value': 'ok'})
-                                                if len(input_ok) > 0:
-                                                    # print('input_ok: ', input_ok)
-                                                    input_ok = input_ok[0]
-                                                    form_attack = input_ok.parent
-                                                    # print('form_attack: ', form_attack)
-                                                    input_id = form_attack.find("input", attrs={'name': 'id'})
-                                                    input_rand = form_attack.find("input", attrs={'name': 'rand'})
-                                                    form_attack_id = input_id['value']
-                                                    form_attack_rand = input_rand['value']
-                                                    # print('input_id: ', input_id)
-                                                    # print('input_rand: ', input_rand)
-                                                    attack_data = {
-                                                        'mod': 'ataka2',
-                                                        'id': form_attack_id,
-                                                        'rand': form_attack_rand,
-                                                        'yes': 'ok'
-                                                    }
-                                                    print('attack_data:', attack_data)
-                                                    url_attack = f"{JSON_Settings['foiz_data.urls.wow.arena2lvls.go']}mod=ataka2&id={form_attack_id}&rand={form_attack_rand}&yes=ok"
-                                                    response_attack = request_get(url_attack, sleeper=False)
-                                                    soup_end = BeautifulSoup(response_attack.text, 'html.parser')
-                                                    div_body = soup_end.select('div[class="body"]')
-                                                    if len(div_body) > 0:
-                                                        div_body = div_body[0]
-                                                        div_p_m = div_body.select('div[class="p_m"]')
-                                                        if len(div_p_m) > 0:
-                                                            stats = div_p_m[0]
-                                                            arena = stats.select('a[href*="arena"]')
-                                                            if len(arena) > 0:
-                                                                arena_text = arena[0].text
-                                                                arena_data = arena_text.split('/')
-                                                                granted_battles = int(arena_data[0])
-                                                                total_battles = int(arena_data[1])
-                                                print(f"Битвы: {granted_battles} / {total_battles}")
-                                                # break
-                                            print(' ')
-
-                                            # if diff_attack > 0:
-                                            #     # моя атака больше
-                                            #     if diff_attack < 3000:
-                                            #         # атакуй
-                                            #     else:
-                                            #         continue
-                                            # else:
+                                                print('Проблемы с получением статов')
 
                                         else:
-                                            print('Проблемы с получением статов')
-
-                                    else:
-                                        print('Проблема с получением арены')
-                                    # break
-                                print(':::::::::: </АРЕНА> ::::::::::')
+                                            print('Проблема с получением арены')
+                                        # break
+                        else:
+                            print('Арена отключена')
+                        print(':::::::::: </АРЕНА> ::::::::::')
 
                         if ENERGY < 207:
                             if JSON_Settings['app_data.flags.use_potion']:
