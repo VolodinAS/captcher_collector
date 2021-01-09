@@ -38,12 +38,14 @@ commands1 = ['/start', '/status']
 commands2 = ['/base', '/reset']
 commands3 = ['/stop', '/restart']
 commands4 = ['/elka', '/arena']
+commands5 = ['/thread', '/balance']
 
 keyboard = types.ReplyKeyboardMarkup(True)
 keyboard.row(*commands1)
 keyboard.row(*commands2)
 keyboard.row(*commands3)
 keyboard.row(*commands4)
+keyboard.row(*commands5)
 
 HTML_FOIZ_ELKA_PAGE = ''
 HTML_FOIZ_WOW_PAGE = ''
@@ -139,8 +141,6 @@ def newMessages():
 def send_solution(url, solution, field, type='WOW'):
     global CAPTCHA_URL, bot, CS, JSON_Settings, HTML_FOIZ_WOW_PAGE
     if solution.isdigit():
-        # СНАЧАЛА ПРОВЕРЯЕМ ПАПКУ
-        collected_numbers = os.listdir(JSON_Settings['app_data.system.collection_path'])
         inBase = True
         solution_data = {field: solution}
 
@@ -162,7 +162,7 @@ def send_solution(url, solution, field, type='WOW'):
 
 @bot.message_handler(content_types=["text"])
 def repeat_all_messages(message):
-    global foiz, myThread, keyboard, CS, JSON_Settings
+    global foiz, myThread, keyboard, CS, JSON_Settings, ACC
     print('► New message by chat.id = ' + str(message.chat.id))
     if message.text == '/start' or message.text == '/help':
         print('♥ Launch message')
@@ -175,6 +175,9 @@ def repeat_all_messages(message):
                          '🔄 /reset - сброс капчи (ежечасно)\n\n'
                          '💻 /status - последний перезапуск цикла\n\n'
                          '⚙ /restart - перезапуск цикла (только в случае остановки при проверке /status)\n\n'
+                         'E /elka - включить/выключить ёлочку\n\n'
+                         'T /thread - print потока\n\n'
+                         'B /balance - баланс антикапчи\n\n'
                          '💯 .число - отправить решение', reply_markup=keyboard, parse_mode='HTML')
         print('► Ready...')
     elif message.text == '/stop':
@@ -224,6 +227,18 @@ def repeat_all_messages(message):
         else:
             JSON_Settings['app_data.flags.goarena'] = True
         bot.send_message(message.chat.id, f"Режим арены - {JSON_Settings['app_data.flags.goarena']}")
+    elif message.text == '/thread':
+        print('• thread')
+        print(myThread)
+    elif message.text == '/balance':
+        print('• balance')
+        params = {"clientKey": JSON_Settings['app_data.system.anticaptcha.api_key']}
+        balance_data = request_post('https://api.anti-captcha.com/getBalance', params)
+        if balance_data != -1:
+            print(balance_data.textц)
+            # bot.send_message(message.chat.id, f"Ваш баланс - {balance_data.text}")
+        print( balance_data.content )
+        # bot.send_message(message.chat.id, f"Ваш баланс - {ACC.get_balance()}")
     elif message.text == '/status':
         print('• Статус сервера')
         today = datetime.datetime.today()
