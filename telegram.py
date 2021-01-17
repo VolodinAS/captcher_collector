@@ -37,15 +37,15 @@ myThread = 0
 commands1 = ['/start', '/status']
 commands2 = ['/base', '/reset']
 commands3 = ['/stop', '/restart']
-commands4 = ['/elka', '/arena']
-commands5 = ['/thread', '/balance']
+# commands4 = ['/elka', '/arena']
+# commands5 = ['/thread', '/balance']
 
 keyboard = types.ReplyKeyboardMarkup(True)
 keyboard.row(*commands1)
 keyboard.row(*commands2)
 keyboard.row(*commands3)
-keyboard.row(*commands4)
-keyboard.row(*commands5)
+# keyboard.row(*commands4)
+# keyboard.row(*commands5)
 
 HTML_FOIZ_ELKA_PAGE = ''
 HTML_FOIZ_WOW_PAGE = ''
@@ -177,7 +177,9 @@ def repeat_all_messages(message):
                          '⚙ /restart - перезапуск цикла (только в случае остановки при проверке /status)\n\n'
                          'E /elka - включить/выключить ёлочку\n\n'
                          'T /thread - print потока\n\n'
+                         'A /arena - начать арену\n\n'
                          'B /balance - баланс антикапчи\n\n'
+                         'S /shakta - принудительно идти в шахту\n\n'
                          '💯 .число - отправить решение', reply_markup=keyboard, parse_mode='HTML')
         print('► Ready...')
     elif message.text == '/stop':
@@ -227,6 +229,13 @@ def repeat_all_messages(message):
         else:
             JSON_Settings['app_data.flags.goarena'] = True
         bot.send_message(message.chat.id, f"Режим арены - {JSON_Settings['app_data.flags.goarena']}")
+    elif message.text == '/shakta':
+        print('• Шахта')
+        if JSON_Settings['app_data.flags.goshakta']:
+            JSON_Settings['app_data.flags.goshakta'] = False
+        else:
+            JSON_Settings['app_data.flags.goshakta'] = True
+        bot.send_message(message.chat.id, f"Режим Шахты - {JSON_Settings['app_data.flags.goshakta']}")
     elif message.text == '/thread':
         print('• thread')
         print(myThread)
@@ -588,6 +597,10 @@ def makeWowGreatAgain():
                                 # AccessToShakta = True # ВАЖНО
 
                                 newShakta = False
+
+                                if JSON_Settings['app_data.flags.goshakta']:
+                                    AccessToShakta = True
+
                                 if AccessToShakta:
                                     print('Мало энергии, идём в шахту')
                                     if IMIN_shakta:
@@ -612,6 +625,10 @@ def makeWowGreatAgain():
                                             print('shakta - еще не копаем, надо копать')
                                             if ENERGY >= 69:
                                                 print('Энергия восполнилась, надо сражаться')
+                                                if JSON_Settings['app_data.flags.goshakta']:
+                                                    print('Принудительный поход в шахту')
+                                                    response_wow_shakta_go = request_get(
+                                                        JSON_Settings['foiz_data.urls.wow.shakta.go'])
                                             else:
                                                 response_wow_shakta_go = request_get(
                                                     JSON_Settings['foiz_data.urls.wow.shakta.go'])
